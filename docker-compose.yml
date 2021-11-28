@@ -1,0 +1,40 @@
+version: '3'
+services:
+  sql_imports:
+    build: ./dockerImages/sql_imports/.
+    environment:
+       DRIVER: "${DRIVER}"
+       SERVER: "${SERVER}"
+       PORT: "${PORT}"
+       SQL_USER: "${SQL_USER}"
+       SQL_PASSWORD: "${SQL_PASSWORD}"
+       DATABASE: "${DATABASE}"
+    volumes:
+      - /tmp:/tmp
+    depends_on:
+      - mssql_db
+    deploy:
+      restart_policy:
+        condition: on-failure
+        delay: 5s
+        window: 120s
+  mssql_db:
+    build: ./dockerImages/mssql_db/.
+    ports:
+      - "127.0.0.1:8081:1433"
+    environment:
+      ACCEPT_EULA: "Y"
+      SA_PASSWORD: "${SQL_PASSWORD}"
+      SQL_USER: "${SQL_USER}"
+      SQL_PASSWORD: "${SQL_PASSWORD}"
+      DATABASE: "${DATABASE}"
+    volumes:
+      - /tmp:/tmp
+    healthcheck:
+      test: /opt/mssql-tools/bin/sqlcmd -S localhost -U sa -P "$${SA_PASSWORD}" -Q "SELECT 1" -b -o /dev/null
+      interval: 10s
+      timeout: 3s
+      retries: 10
+      start_period: 10s
+    restart:
+      always

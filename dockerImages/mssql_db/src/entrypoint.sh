@@ -1,0 +1,1 @@
+/opt/mssql/bin/sqlservr & /usr/src/app/import_data.sh & sleep infinity

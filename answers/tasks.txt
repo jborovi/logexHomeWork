@@ -1,0 +1,80 @@
+Task:2
+Write a query that will return the total cost of the most expensive patient in last complete year along with patient details.
+
+Columns returned: Patient_id, First_name, Second_name, cost
+answer:
+SELECT TOP 1 tp.patientid as Patient_id, tp.firstname as First_name, tp.lastname as Second_name,sum(tp2.price) as cost
+FROM test_patients tp
+INNER JOIN test_medical_trajectory tmt ON tp.patientid = tmt.patient_id
+INNER JOIN test_trajectory_detail ttd ON ttd.traject_id = tmt.traject_id
+INNER JOIN test_activities ta ON ttd.activity_id = ta.id
+INNER JOIN test_prices tp2 ON ta.id = tp2.activity_id
+WHERE YEAR(ttd.date_performed) = YEAR(GETDATE()) - 1
+GROUP BY tp.patientid, tp.firstname, tp.lastname ORDER by sum(tp2.price) desc;
+
+Task:3
+Write a query that will return cost per patient grouped by a year.
+Columns returned: Patient_id, cost, year
+answer:
+SELECT tmt.patient_id as Patient_id, sum(tp2.price) as cost, YEAR(ttd.date_performed) as year
+FROM test_medical_trajectory tmt
+INNER JOIN test_trajectory_detail ttd ON ttd.traject_id = tmt.traject_id
+INNER JOIN test_activities ta ON ttd.activity_id = ta.id
+INNER JOIN test_prices tp2 ON ta.id = tp2.activity_id
+GROUP BY tmt.patient_id, YEAR(ttd.date_performed) ORDER BY tmt.patient_id ASC, year(ttd.date_performed) ASC
+
+Task:4
+Write a query that will calculate the overall cost per treatment category by month for the last complete year.
+Columns returned: Treatment category Id, Cost, Month
+SELECT ttc.category_id as 'category Id',
+COALESCE (sum(tp2.price), 0) as Cost,
+COALESCE (cast (MONTH(ttd.date_performed) as varchar), 'Not performed') as Month
+FROM test_medical_trajectory tmt INNER JOIN test_trajectory_detail ttd ON ttd.traject_id = tmt.traject_id
+RIGHT JOIN test_activities ta ON ttd.activity_id = ta.id
+INNER JOIN test_prices tp2 ON ta.id = tp2.activity_id
+INNER JOIN test_treatment_subcategories tts ON ta.treatment_subcategory_id = tts.subcategory_id
+RIGHT JOIN test_treatment_categories ttc ON ttc.category_id = tts.treatment_category_id
+WHERE YEAR(ttd.date_performed) = YEAR(GETDATE()) - 1 OR ttd.date_performed is NULL
+GROUP BY ttc.category_id, MONTH(ttd.date_performed) ORDER by ttc.category_id , MONTH(ttd.date_performed) ASC ;
+
+Task:5
+Create a query that will return all patients labelled by a treatment category.
+
+Rules for labelling:
+
+The patient should be marked by the treatment category corresponding to the subcategory mapped to an activity with the highest cost sum performed within a traject (remember single activity can be performed multiple times in a traject and in this case cost is a sum of instances).
+
+For example, Patient 1 has 3 trajects and corresponding activities mapped to a traject.
+Example 1:
+
+PatientId,TrajectId, Activity_code, Price
+
+1, 1, 1, 180
+
+1, 1, 1, 180
+
+1, 1, 3, 200
+
+1, 2, 4, 300
+
+1, 3, 4, 300
+
+In this case, the patient should be labelled by treatment category mapped to activity 1 as overall cost
+withing traject 1 for this activity is 360 which is more than the cost for activities 3,4.
+In case of prices are the same for certain activities use a rank field on treatment subcategory.
+SubCategory with higher rank will be used.
+Columns returned: Treatment category Id, patient_id
+answer:
+SELECT category_id AS 'category Id',
+patient_id as patient_id
+FROM ( SELECT ROW_NUMBER() OVER(PARTITION BY tmt.patient_id ORDER BY tmt.patient_id, SUM(tp2.price) DESC, ttc2.rank DESC) AS group_row,
+tmt.patient_id as patient_id, ttc2.category_id, tmt.traject_id, ttd.activity_id,
+SUM(tp2.price) as sum_price,
+ttc2.rank FROM test_medical_trajectory tmt
+INNER JOIN test_trajectory_detail ttd ON ttd.traject_id = tmt.traject_id
+INNER JOIN test_activities ta ON ttd.activity_id = ta.id
+INNER JOIN test_prices tp2 ON ta.id = tp2.activity_id
+INNER JOIN test_treatment_subcategories tts on tts.subcategory_id = ta.treatment_subcategory_id
+INNER join test_treatment_categories ttc2 on ttc2.category_id = tts.treatment_category_id
+GROUP BY tmt.patient_id, ttc2.category_id, tmt.traject_id, ttd.activity_id, ttc2.rank) b
+WHERE b.group_row = 1 ORDER BY patient_id, category_id
