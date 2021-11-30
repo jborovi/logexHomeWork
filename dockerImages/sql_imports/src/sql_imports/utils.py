@@ -1,7 +1,10 @@
 import csv
+import operator
 from datetime import date, timedelta
 from random import randrange
+import logging
 
+logging.basicConfig(level=logging.INFO)
 
 def write_csv(file: str, values: list) -> str:
     """
@@ -18,6 +21,13 @@ def write_csv(file: str, values: list) -> str:
     return file
 
 
+def get_ordered_csv(file:str, order_by: int):
+    data = csv.reader(open(file), delimiter=',')
+    # sort data on the basis of age
+    data = sorted(data, key=operator.itemgetter(order_by))
+    return data
+
+
 def random_date(start: date, end: date) -> date:
     """
     This function will return a random date between two date
@@ -27,4 +37,6 @@ def random_date(start: date, end: date) -> date:
     :return: datetime.date
     """
     delta = end - start
+    if delta.days == 0:
+        return start
     return start + timedelta(days=randrange(delta.days))

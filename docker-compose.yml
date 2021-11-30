@@ -16,8 +16,6 @@ services:
     deploy:
       restart_policy:
         condition: on-failure
-        delay: 5s
-        window: 120s
   mssql_db:
     build: ./dockerImages/mssql_db/.
     ports:
